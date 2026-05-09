@@ -9,6 +9,14 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+def normalize_database_url(database_url: str | None) -> str:
+    """Normalize common platform database URLs for SQLAlchemy."""
+    database_url = (database_url or "").strip()
+    if database_url.startswith("postgres://"):
+        return database_url.replace("postgres://", "postgresql://", 1)
+    return database_url
+
+
 class Config:
     """Base configuration shared across all environments."""
 
@@ -18,7 +26,9 @@ class Config:
     TESTING: bool = False
 
     # --- Database ---
-    SQLALCHEMY_DATABASE_URI: str = os.environ.get("DATABASE_URL", "")
+    DATABASE_URL: str = normalize_database_url(os.environ.get("DATABASE_URL"))
+    REQUIRE_DATABASE_URL: bool = False
+    SQLALCHEMY_DATABASE_URI: str = DATABASE_URL or "sqlite:///task_manager.db"
     SQLALCHEMY_TRACK_MODIFICATIONS: bool = False
     SQLALCHEMY_ENGINE_OPTIONS: dict = {
         "pool_pre_ping": True,
@@ -48,6 +58,7 @@ class DevelopmentConfig(Config):
 
 class ProductionConfig(Config):
     DEBUG: bool = False
+    REQUIRE_DATABASE_URL: bool = True
     JWT_COOKIE_SECURE: bool = True
     JWT_COOKIE_CSRF_PROTECT: bool = True
 

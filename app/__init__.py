@@ -2,6 +2,8 @@
 Application factory — wires up all Flask extensions, blueprints, and SocketIO handlers.
 """
 from flask import Flask
+from sqlalchemy.engine import make_url
+from sqlalchemy.exc import ArgumentError
 
 from app.config.config import get_config
 from app.extensions import db, migrate, jwt, socketio
@@ -13,6 +15,23 @@ def create_app(config_class=None) -> Flask:
     # Load config
     cfg = config_class or get_config()
     app.config.from_object(cfg)
+
+    database_url = app.config.get("DATABASE_URL")
+    database_uri = app.config.get("SQLALCHEMY_DATABASE_URI")
+    if app.config.get("REQUIRE_DATABASE_URL") and not database_url:
+        raise RuntimeError(
+            "DATABASE_URL is required when FLASK_ENV=production. "
+            "On Render, attach a Postgres database and set DATABASE_URL from "
+            "fromDatabase.connectionString."
+        )
+
+    try:
+        make_url(database_uri)
+    except ArgumentError as exc:
+        raise RuntimeError(
+            "DATABASE_URL is not a valid SQLAlchemy database URL. "
+            "Expected a value like postgresql://user:password@host:5432/database."
+        ) from exc
 
     # Initialize extensions
     db.init_app(app)
