@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Create Account — Smart Task Manager{% endblock %}
+
+{% block body %}
+<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-900 via-brand-700 to-brand-500 px-4 py-8">
+  <div class="w-full max-w-md animate-fade-in">
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8">
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-600 mb-4 shadow-lg">
+          <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z"/>
+          </svg>
+        </div>
+        <h1 class="text-2xl font-bold text-slate-800 dark:text-white">Create your account</h1>
+        <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm">Start managing tasks smarter</p>
+      </div>
+
+      <form id="reg-form" class="space-y-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Full name</label>
+          <input id="full_name" type="text" placeholder="Jane Smith" required
+            class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 transition text-sm" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Email address</label>
+          <input id="email" type="email" placeholder="you@example.com" required
+            class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 transition text-sm" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Password</label>
+          <input id="password" type="password" placeholder="Min 8 chars, 1 uppercase, 1 digit" required
+            class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 transition text-sm" />
+          <p class="text-xs text-slate-400 mt-1">At least 8 characters, 1 uppercase letter and 1 number.</p>
+        </div>
+
+        <button id="reg-btn" type="submit"
+          class="btn w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3 px-6 rounded-xl shadow-md hover:shadow-lg flex items-center justify-center gap-2 mt-2">
+          <span id="reg-text">Create Account</span>
+          <svg id="reg-spinner" class="hidden animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+          </svg>
+        </button>
+      </form>
+
+      <p class="text-center mt-6 text-sm text-slate-500 dark:text-slate-400">
+        Already have an account?
+        <a href="/login" class="text-brand-600 hover:text-brand-700 font-semibold">Sign in</a>
+      </p>
+    </div>
+    <div class="text-center mt-4">
+      <button onclick="toggleDark()" class="text-white/70 hover:text-white text-xs transition">Toggle dark mode</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  if (getToken()) window.location.href = '/dashboard';
+
+  document.getElementById('reg-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('reg-btn');
+    const spinner = document.getElementById('reg-spinner');
+    const text = document.getElementById('reg-text');
+    btn.disabled = true; spinner.classList.remove('hidden'); text.textContent = 'Creating…';
+
+    const { ok, data } = await apiFetch('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({
+        full_name: document.getElementById('full_name').value,
+        email: document.getElementById('email').value,
+        password: document.getElementById('password').value,
+      })
+    });
+
+    btn.disabled = false; spinner.classList.add('hidden'); text.textContent = 'Create Account';
+
+    if (ok) {
+      showToast('Account created! Please sign in.', 'success');
+      setTimeout(() => window.location.href = '/login', 900);
+    } else {
+      showToast(data.message || 'Registration failed.', 'error');
+    }
+  });
+</script>
+{% endblock %}

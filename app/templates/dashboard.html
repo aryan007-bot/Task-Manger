@@ -1,0 +1,431 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — Smart Task Manager{% endblock %}
+
+{% block body %}
+<div class="min-h-screen flex flex-col bg-slate-100 dark:bg-slate-900">
+
+  <!-- ── Navbar ──────────────────────────────────────────────────────────── -->
+  <nav class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 sticky top-0 z-30 shadow-sm">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 rounded-lg bg-brand-600 flex items-center justify-center shadow">
+          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+          </svg>
+        </div>
+        <span class="font-bold text-slate-800 dark:text-white text-lg">TaskFlow</span>
+      </div>
+
+      <div class="flex items-center gap-3">
+        <!-- Live indicator -->
+        <div id="live-dot" class="flex items-center gap-1.5 text-xs text-emerald-600 dark:text-emerald-400 font-medium">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> Live
+        </div>
+        <!-- Dark mode -->
+        <button onclick="toggleDark()" class="p-2 rounded-lg text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364-6.364l-.707.707M6.343 17.657l-.707.707M17.657 17.657l-.707-.707M6.343 6.343l-.707-.707"/>
+          </svg>
+        </button>
+        <!-- User menu -->
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-full bg-brand-600 flex items-center justify-center text-white text-sm font-bold" id="avatar">?</div>
+          <span class="hidden sm:block text-sm font-medium text-slate-700 dark:text-slate-200" id="user-name">...</span>
+        </div>
+        <button onclick="logout()" class="btn text-sm px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600 hover:border-red-200 transition">
+          Sign out
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+
+    <!-- ── Analytics Cards ─────────────────────────────────────────────── -->
+    <section>
+      <h2 class="text-lg font-semibold text-slate-700 dark:text-slate-200 mb-4">Overview</h2>
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4" id="analytics-cards">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 animate-pulse h-28"></div>
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 animate-pulse h-28"></div>
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 animate-pulse h-28"></div>
+        <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 animate-pulse h-28"></div>
+      </div>
+    </section>
+
+    <!-- ── Charts ──────────────────────────────────────────────────────── -->
+    <section class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+        <h3 class="font-semibold text-slate-700 dark:text-slate-200 mb-4">Tasks Created — Last 7 Days</h3>
+        <canvas id="trend-chart" height="140"></canvas>
+      </div>
+      <div class="bg-white dark:bg-slate-800 rounded-2xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+        <h3 class="font-semibold text-slate-700 dark:text-slate-200 mb-4">Priority Distribution</h3>
+        <canvas id="priority-chart" height="140"></canvas>
+      </div>
+    </section>
+
+    <!-- ── Tasks Section ───────────────────────────────────────────────── -->
+    <section>
+      <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+        <h2 class="text-lg font-semibold text-slate-700 dark:text-slate-200">My Tasks</h2>
+        <div class="flex items-center gap-2">
+          <!-- Search -->
+          <div class="relative">
+            <input id="search-input" type="text" placeholder="Search tasks…" oninput="debounceSearch()"
+              class="pl-9 pr-4 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 transition w-44 sm:w-56" />
+            <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+            </svg>
+          </div>
+          <!-- Filters -->
+          <select id="filter-status" onchange="loadTasks()" class="text-sm rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500 transition">
+            <option value="">All Status</option>
+            <option value="pending">Pending</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+          </select>
+          <select id="filter-priority" onchange="loadTasks()" class="text-sm rounded-xl border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-brand-500 transition">
+            <option value="">All Priority</option>
+            <option value="high">High</option>
+            <option value="medium">Medium</option>
+            <option value="low">Low</option>
+          </select>
+          <!-- New task -->
+          <button onclick="openModal()" class="btn bg-brand-600 hover:bg-brand-700 text-white text-sm font-semibold px-4 py-2 rounded-xl shadow-md hover:shadow-lg flex items-center gap-1.5">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+            New Task
+          </button>
+        </div>
+      </div>
+
+      <!-- Task grid -->
+      <div id="task-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+      <div id="task-empty" class="hidden text-center py-20 text-slate-400 dark:text-slate-500">
+        <svg class="w-14 h-14 mx-auto mb-4 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        <p class="text-lg font-medium">No tasks yet</p>
+        <p class="text-sm mt-1">Click <strong>New Task</strong> to get started.</p>
+      </div>
+      <div id="task-loading" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div class="bg-white dark:bg-slate-800 rounded-2xl h-40 animate-pulse border border-slate-200 dark:border-slate-700"></div>
+        <div class="bg-white dark:bg-slate-800 rounded-2xl h-40 animate-pulse border border-slate-200 dark:border-slate-700"></div>
+        <div class="bg-white dark:bg-slate-800 rounded-2xl h-40 animate-pulse border border-slate-200 dark:border-slate-700"></div>
+      </div>
+
+      <!-- Pagination -->
+      <div id="pagination" class="flex justify-center gap-2 mt-6"></div>
+    </section>
+  </main>
+</div>
+
+<!-- ── Create / Edit Task Modal ──────────────────────────────────────────── -->
+<div id="task-modal" class="hidden fixed inset-0 z-50 flex items-center justify-center px-4">
+  <div class="modal-backdrop absolute inset-0 bg-slate-900/50" onclick="closeModal()"></div>
+  <div class="relative bg-white dark:bg-slate-800 rounded-2xl shadow-2xl w-full max-w-lg animate-slide-up p-8">
+    <div class="flex items-center justify-between mb-6">
+      <h3 id="modal-title" class="text-xl font-bold text-slate-800 dark:text-white">New Task</h3>
+      <button onclick="closeModal()" class="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <form id="task-form" class="space-y-4">
+      <input type="hidden" id="task-id" />
+      <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Title <span class="text-red-500">*</span></label>
+        <input id="task-title" type="text" placeholder="What needs to be done?" required
+          class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 transition text-sm" />
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Description</label>
+        <textarea id="task-desc" rows="3" placeholder="Add more context…"
+          class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 transition text-sm resize-none"></textarea>
+      </div>
+      <div class="grid grid-cols-2 gap-4">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Priority</label>
+          <select id="task-priority" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 transition text-sm">
+            <option value="low">Low</option>
+            <option value="medium" selected>Medium</option>
+            <option value="high">High</option>
+          </select>
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Status</label>
+          <select id="task-status" class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 transition text-sm">
+            <option value="pending">Pending</option>
+            <option value="in_progress">In Progress</option>
+            <option value="completed">Completed</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Deadline (optional)</label>
+        <input id="task-deadline" type="datetime-local"
+          class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 transition text-sm" />
+      </div>
+      <div class="flex gap-3 pt-2">
+        <button type="button" onclick="closeModal()" class="btn flex-1 py-3 rounded-xl border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 font-semibold hover:bg-slate-50 dark:hover:bg-slate-700 transition text-sm">
+          Cancel
+        </button>
+        <button id="save-btn" type="submit" class="btn flex-1 py-3 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold shadow-md hover:shadow-lg transition text-sm flex items-center justify-center gap-2">
+          <span id="save-text">Save Task</span>
+          <svg id="save-spinner" class="hidden animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+          </svg>
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const PRIORITY_COLORS = {
+  high:   { bg: 'bg-red-100 dark:bg-red-900/30',    text: 'text-red-700 dark:text-red-400',    dot: 'bg-red-500' },
+  medium: { bg: 'bg-amber-100 dark:bg-amber-900/30', text: 'text-amber-700 dark:text-amber-400', dot: 'bg-amber-500' },
+  low:    { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-400', dot: 'bg-emerald-500' },
+};
+const STATUS_COLORS = {
+  pending:     { bg: 'bg-slate-100 dark:bg-slate-700',   text: 'text-slate-600 dark:text-slate-300',   label: 'Pending' },
+  in_progress: { bg: 'bg-blue-100 dark:bg-blue-900/30',  text: 'text-blue-700 dark:text-blue-400',     label: 'In Progress' },
+  completed:   { bg: 'bg-emerald-100 dark:bg-emerald-900/30', text: 'text-emerald-700 dark:text-emerald-400', label: 'Completed' },
+};
+
+let currentPage = 1;
+let searchTimer = null;
+let trendChart = null, priorityChart = null;
+
+// ── Init ─────────────────────────────────────────────────────────────────
+if (!getToken()) window.location.href = '/login';
+const user = getUser();
+if (user) {
+  document.getElementById('user-name').textContent = user.full_name || user.email;
+  document.getElementById('avatar').textContent = (user.full_name || 'U')[0].toUpperCase();
+}
+
+// ── SocketIO ──────────────────────────────────────────────────────────────
+const socket = io('/tasks');
+socket.on('connect',      () => { document.getElementById('live-dot').classList.remove('hidden'); });
+socket.on('disconnect',   () => { document.getElementById('live-dot').classList.add('hidden'); });
+socket.on('task_created', () => { loadTasks(); loadAnalytics(); showToast('A new task was added.', 'info'); });
+socket.on('task_updated', () => { loadTasks(); loadAnalytics(); });
+socket.on('task_deleted', () => { loadTasks(); loadAnalytics(); showToast('A task was deleted.', 'warning'); });
+
+// ── Load analytics ────────────────────────────────────────────────────────
+async function loadAnalytics() {
+  const { ok, data } = await apiFetch('/api/analytics');
+  if (!ok) return;
+  const a = data.data;
+
+  const cards = [
+    { label: 'Total Tasks',  value: a.total_tasks,           icon: '📋', color: 'brand' },
+    { label: 'Completed',    value: a.completed_tasks,        icon: '✅', color: 'emerald' },
+    { label: 'In Progress',  value: a.in_progress_tasks,      icon: '🔄', color: 'blue' },
+    { label: 'Completion %', value: a.completion_percentage + '%', icon: '📊', color: 'violet' },
+  ];
+  const colorMap = {
+    brand:   'bg-brand-50 dark:bg-brand-900/20 text-brand-700 dark:text-brand-300',
+    emerald: 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300',
+    blue:    'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300',
+    violet:  'bg-violet-50 dark:bg-violet-900/20 text-violet-700 dark:text-violet-300',
+  };
+  document.getElementById('analytics-cards').innerHTML = cards.map(c => `
+    <div class="bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 animate-fade-in">
+      <div class="flex items-center justify-between mb-3">
+        <span class="text-2xl">${c.icon}</span>
+      </div>
+      <p class="text-3xl font-bold text-slate-800 dark:text-white">${c.value}</p>
+      <p class="text-sm text-slate-500 dark:text-slate-400 mt-1">${c.label}</p>
+    </div>
+  `).join('');
+
+  // Trend chart
+  const trendCtx = document.getElementById('trend-chart').getContext('2d');
+  if (trendChart) trendChart.destroy();
+  trendChart = new Chart(trendCtx, {
+    type: 'bar',
+    data: {
+      labels: a.task_trend.labels.map(d => d.slice(5)),
+      datasets: [{ label: 'Tasks', data: a.task_trend.values, backgroundColor: '#3b82f6', borderRadius: 6 }]
+    },
+    options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } } }
+  });
+
+  // Priority doughnut
+  const priorityCtx = document.getElementById('priority-chart').getContext('2d');
+  if (priorityChart) priorityChart.destroy();
+  const pd = a.priority_distribution;
+  priorityChart = new Chart(priorityCtx, {
+    type: 'doughnut',
+    data: {
+      labels: ['Low', 'Medium', 'High'],
+      datasets: [{ data: [pd.low, pd.medium, pd.high], backgroundColor: ['#10b981','#f59e0b','#ef4444'], borderWidth: 0 }]
+    },
+    options: { responsive: true, cutout: '65%', plugins: { legend: { position: 'bottom' } } }
+  });
+}
+
+// ── Load tasks ────────────────────────────────────────────────────────────
+async function loadTasks(page = 1) {
+  currentPage = page;
+  document.getElementById('task-grid').innerHTML = '';
+  document.getElementById('task-empty').classList.add('hidden');
+  document.getElementById('task-loading').classList.remove('hidden');
+
+  const status   = document.getElementById('filter-status').value;
+  const priority = document.getElementById('filter-priority').value;
+  const search   = document.getElementById('search-input').value.trim();
+  const params   = new URLSearchParams({ page, per_page: 12, ...(status && {status}), ...(priority && {priority}), ...(search && {search}) });
+
+  const { ok, data } = await apiFetch(`/api/tasks?${params}`);
+  document.getElementById('task-loading').classList.add('hidden');
+  if (!ok) return;
+
+  const tasks = data.data || [];
+  const grid  = document.getElementById('task-grid');
+
+  if (!tasks.length) {
+    document.getElementById('task-empty').classList.remove('hidden');
+    document.getElementById('pagination').innerHTML = '';
+    return;
+  }
+
+  grid.innerHTML = tasks.map(t => renderTaskCard(t)).join('');
+  renderPagination(data.pagination);
+}
+
+function renderTaskCard(t) {
+  const p = PRIORITY_COLORS[t.priority] || PRIORITY_COLORS.medium;
+  const s = STATUS_COLORS[t.status]     || STATUS_COLORS.pending;
+  const date = t.deadline ? new Date(t.deadline).toLocaleDateString() : null;
+  const created = new Date(t.created_at).toLocaleDateString();
+  return `
+  <div class="task-card bg-white dark:bg-slate-800 rounded-2xl p-5 shadow-sm border border-slate-200 dark:border-slate-700 flex flex-col gap-3 animate-fade-in">
+    <div class="flex items-start justify-between gap-2">
+      <h4 class="font-semibold text-slate-800 dark:text-white text-sm leading-snug line-clamp-2 flex-1">${escHtml(t.title)}</h4>
+      <div class="flex gap-1 shrink-0">
+        <button onclick="editTask(${t.id})" title="Edit" class="p-1.5 rounded-lg text-slate-400 hover:text-brand-600 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+        </button>
+        <button onclick="deleteTask(${t.id})" title="Delete" class="p-1.5 rounded-lg text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+        </button>
+      </div>
+    </div>
+    ${t.description ? `<p class="text-xs text-slate-500 dark:text-slate-400 line-clamp-2">${escHtml(t.description)}</p>` : ''}
+    <div class="flex items-center gap-2 flex-wrap mt-auto pt-2 border-t border-slate-100 dark:border-slate-700">
+      <span class="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full ${p.bg} ${p.text}">
+        <span class="w-1.5 h-1.5 rounded-full ${p.dot}"></span>${t.priority}
+      </span>
+      <span class="inline-flex text-xs font-medium px-2.5 py-1 rounded-full ${s.bg} ${s.text}">${s.label}</span>
+      <span class="ml-auto text-xs text-slate-400 dark:text-slate-500">${date ? '⏰ ' + date : created}</span>
+    </div>
+  </div>`;
+}
+
+function renderPagination(p) {
+  if (!p || p.pages <= 1) { document.getElementById('pagination').innerHTML = ''; return; }
+  let html = '';
+  const prev = currentPage > 1;
+  const next = currentPage < p.pages;
+  if (prev) html += `<button onclick="loadTasks(${currentPage - 1})" class="px-3 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 transition">← Prev</button>`;
+  html += `<span class="px-3 py-1.5 text-sm text-slate-500 dark:text-slate-400">${currentPage} / ${p.pages}</span>`;
+  if (next) html += `<button onclick="loadTasks(${currentPage + 1})" class="px-3 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-slate-600 text-slate-600 dark:text-slate-300 hover:bg-white dark:hover:bg-slate-700 transition">Next →</button>`;
+  document.getElementById('pagination').innerHTML = html;
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────
+function openModal() {
+  document.getElementById('task-id').value = '';
+  document.getElementById('task-form').reset();
+  document.getElementById('modal-title').textContent = 'New Task';
+  document.getElementById('save-text').textContent = 'Save Task';
+  document.getElementById('task-modal').classList.remove('hidden');
+}
+
+async function editTask(id) {
+  const { ok, data } = await apiFetch(`/api/tasks/${id}`);
+  if (!ok) return;
+  const t = data.data;
+  document.getElementById('task-id').value = t.id;
+  document.getElementById('task-title').value = t.title;
+  document.getElementById('task-desc').value = t.description || '';
+  document.getElementById('task-priority').value = t.priority;
+  document.getElementById('task-status').value = t.status;
+  document.getElementById('task-deadline').value = t.deadline ? t.deadline.slice(0, 16) : '';
+  document.getElementById('modal-title').textContent = 'Edit Task';
+  document.getElementById('save-text').textContent = 'Update Task';
+  document.getElementById('task-modal').classList.remove('hidden');
+}
+
+function closeModal() {
+  document.getElementById('task-modal').classList.add('hidden');
+}
+
+document.getElementById('task-form').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('task-id').value;
+  const saveBtn = document.getElementById('save-btn');
+  const spinner = document.getElementById('save-spinner');
+  const text = document.getElementById('save-text');
+  saveBtn.disabled = true; spinner.classList.remove('hidden');
+
+  const payload = {
+    title:       document.getElementById('task-title').value,
+    description: document.getElementById('task-desc').value,
+    priority:    document.getElementById('task-priority').value,
+    status:      document.getElementById('task-status').value,
+    deadline:    document.getElementById('task-deadline').value || null,
+  };
+
+  const url    = id ? `/api/tasks/${id}` : '/api/tasks';
+  const method = id ? 'PUT' : 'POST';
+  const { ok, data } = await apiFetch(url, { method, body: JSON.stringify(payload) });
+
+  saveBtn.disabled = false; spinner.classList.add('hidden');
+
+  if (ok) {
+    showToast(id ? 'Task updated!' : 'Task created!', 'success');
+    closeModal();
+    loadTasks(currentPage);
+    loadAnalytics();
+  } else {
+    showToast(data.message || 'Failed to save task.', 'error');
+  }
+});
+
+async function deleteTask(id) {
+  if (!confirm('Delete this task?')) return;
+  const { ok, data } = await apiFetch(`/api/tasks/${id}`, { method: 'DELETE' });
+  if (ok) {
+    showToast('Task deleted.', 'warning');
+    loadTasks(currentPage);
+    loadAnalytics();
+  } else {
+    showToast(data.message || 'Delete failed.', 'error');
+  }
+}
+
+async function logout() {
+  await apiFetch('/api/auth/logout', { method: 'POST' });
+  clearAuth();
+  window.location.href = '/login';
+}
+
+function debounceSearch() {
+  clearTimeout(searchTimer);
+  searchTimer = setTimeout(() => loadTasks(1), 350);
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+loadTasks();
+loadAnalytics();
+</script>
+{% endblock %}

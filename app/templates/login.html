@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Sign In — Smart Task Manager{% endblock %}
+
+{% block body %}
+<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-brand-900 via-brand-700 to-brand-500 px-4">
+  <div class="w-full max-w-md animate-fade-in">
+    <!-- Card -->
+    <div class="bg-white dark:bg-slate-800 rounded-2xl shadow-2xl p-8">
+      <!-- Header -->
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-brand-600 mb-4 shadow-lg">
+          <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/>
+          </svg>
+        </div>
+        <h1 class="text-2xl font-bold text-slate-800 dark:text-white">Welcome back</h1>
+        <p class="text-slate-500 dark:text-slate-400 mt-1 text-sm">Sign in to your workspace</p>
+      </div>
+
+      <!-- Form -->
+      <form id="login-form" class="space-y-5">
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Email address</label>
+          <input id="email" type="email" placeholder="you@example.com" required
+            class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition text-sm" />
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1.5">Password</label>
+          <div class="relative">
+            <input id="password" type="password" placeholder="••••••••" required
+              class="w-full px-4 py-3 rounded-xl border border-slate-200 dark:border-slate-600 bg-slate-50 dark:bg-slate-700 text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition text-sm pr-11" />
+            <button type="button" onclick="togglePwd('password','eye-pw')" class="absolute inset-y-0 right-3 flex items-center text-slate-400 hover:text-slate-600">
+              <svg id="eye-pw" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <button id="login-btn" type="submit"
+          class="btn w-full bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3 px-6 rounded-xl shadow-md hover:shadow-lg flex items-center justify-center gap-2">
+          <span id="login-text">Sign In</span>
+          <svg id="login-spinner" class="hidden animate-spin w-4 h-4" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/>
+          </svg>
+        </button>
+      </form>
+
+      <p class="text-center mt-6 text-sm text-slate-500 dark:text-slate-400">
+        Don't have an account?
+        <a href="/register" class="text-brand-600 hover:text-brand-700 font-semibold">Create one</a>
+      </p>
+    </div>
+
+    <!-- Dark mode toggle -->
+    <div class="text-center mt-4">
+      <button onclick="toggleDark()" class="text-white/70 hover:text-white text-xs transition">Toggle dark mode</button>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // Redirect if already logged in
+  if (getToken()) window.location.href = '/dashboard';
+
+  function togglePwd(inputId, iconId) {
+    const input = document.getElementById(inputId);
+    input.type = input.type === 'password' ? 'text' : 'password';
+  }
+
+  document.getElementById('login-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('login-btn');
+    const spinner = document.getElementById('login-spinner');
+    const text = document.getElementById('login-text');
+    btn.disabled = true; spinner.classList.remove('hidden'); text.textContent = 'Signing in…';
+
+    const { ok, data } = await apiFetch('/api/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email: document.getElementById('email').value, password: document.getElementById('password').value })
+    });
+
+    btn.disabled = false; spinner.classList.add('hidden'); text.textContent = 'Sign In';
+
+    if (ok) {
+      setToken(data.data.access_token);
+      setUser(data.data.user);
+      showToast('Welcome back!', 'success');
+      setTimeout(() => window.location.href = '/dashboard', 600);
+    } else {
+      showToast(data.message || 'Login failed.', 'error');
+    }
+  });
+</script>
+{% endblock %}

@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Smart Task Manager{% endblock %}</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: { 50:'#eff6ff', 100:'#dbeafe', 500:'#3b82f6', 600:'#2563eb', 700:'#1d4ed8', 900:'#1e3a8a' }
+          },
+          animation: {
+            'fade-in': 'fadeIn 0.3s ease-in-out',
+            'slide-up': 'slideUp 0.3s ease-out',
+          },
+          keyframes: {
+            fadeIn: { '0%': { opacity: '0' }, '100%': { opacity: '1' } },
+            slideUp: { '0%': { transform: 'translateY(16px)', opacity: '0' }, '100%': { transform: 'translateY(0)', opacity: '1' } },
+          }
+        }
+      }
+    }
+  </script>
+  <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    .task-card { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+    .task-card:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,0,0,0.12); }
+    .btn { transition: all 0.15s ease; }
+    .modal-backdrop { backdrop-filter: blur(4px); }
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 3px; }
+    .notification { animation: slideInRight 0.3s ease-out; }
+    @keyframes slideInRight { from { transform: translateX(100%); opacity:0; } to { transform: translateX(0); opacity:1; } }
+  </style>
+  {% block head %}{% endblock %}
+</head>
+<body class="h-full bg-slate-50 text-slate-800 antialiased">
+  {% block body %}{% endblock %}
+
+  <!-- Toast container -->
+  <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2 pointer-events-none"></div>
+
+  <script>
+    // ── Theme ──────────────────────────────────────────────────────────────
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    if (savedTheme === 'dark') document.documentElement.classList.add('dark');
+
+    function toggleDark() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    }
+
+    // ── Toast ──────────────────────────────────────────────────────────────
+    function showToast(message, type = 'success') {
+      const colors = { success: 'bg-emerald-500', error: 'bg-red-500', info: 'bg-brand-500', warning: 'bg-amber-500' };
+      const icons  = { success: '✓', error: '✕', info: 'ℹ', warning: '⚠' };
+      const toast = document.createElement('div');
+      toast.className = `notification pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-xl text-white text-sm font-medium shadow-lg ${colors[type] || colors.info}`;
+      toast.innerHTML = `<span class="text-base">${icons[type] || icons.info}</span><span>${message}</span>`;
+      const container = document.getElementById('toast-container');
+      container.appendChild(toast);
+      setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 300); }, 3500);
+    }
+
+    // ── Auth helpers ───────────────────────────────────────────────────────
+    function getToken() { return localStorage.getItem('access_token'); }
+    function setToken(t) { localStorage.setItem('access_token', t); }
+    function clearAuth() { localStorage.removeItem('access_token'); localStorage.removeItem('user'); }
+    function getUser()  { try { return JSON.parse(localStorage.getItem('user') || 'null'); } catch { return null; } }
+    function setUser(u) { localStorage.setItem('user', JSON.stringify(u)); }
+
+    async function apiFetch(url, options = {}) {
+      const token = getToken();
+      const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      const res = await fetch(url, { ...options, headers });
+      const json = await res.json().catch(() => ({}));
+      return { ok: res.ok, status: res.status, data: json };
+    }
+  </script>
+  {% block scripts %}{% endblock %}
+</body>
+</html>
